@@ -7,3 +7,8 @@ type GenerateRequest struct {
 	Venue     string `json:"venue"`
 	Theme     string `json:"theme"`
 }
+
+// SwapStyleRequest defines the structure for the JSON data sent for swapping styles.
+type SwapStyleRequest struct {
+	StyleIndex int `json:"styleIndex"`
+}

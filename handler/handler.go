@@ -6,9 +6,11 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/sanjayshr/event-outfitter-backend/gemini"
 	"github.com/sanjayshr/event-outfitter-backend/models"
 	"github.com/sanjayshr/event-outfitter-backend/server"
@@ -89,18 +91,149 @@ func GenerateHandler(s *server.Server) http.HandlerFunc {
 		s.Logger.Info("Image received", "filename", handler.Filename, "size", handler.Size, "mimeType", mimeType)
 		// --- End of replacement ---
 
-		// 3. Call the Gemini service
-		generatedImg, generatedMimeType, err := gemini.GenerateImage(r.Context(), s.Logger, imgData, mimeType, reqData)
+		// 3. Get style suggestions from Gemini (text-only call)
+		styles, err := gemini.GetStyleSuggestions(r.Context(), s.Logger, reqData.EventType, reqData.Venue, reqData.Theme)
 		if err != nil {
-			s.Logger.Error("Failed to generate image via Gemini", "error", err)
-			http.Error(w, "Failed to generate image.", http.StatusInternalServerError)
+			s.Logger.Error("Failed to get style suggestions", "error", err)
+			http.Error(w, "Failed to get style suggestions.", http.StatusInternalServerError)
+			return
+		}
+		if len(styles) == 0 {
+			s.Logger.Error("No style suggestions returned")
+			http.Error(w, "No style suggestions could be generated.", http.StatusInternalServerError)
 			return
 		}
 
-		// 4. Write the successful response
+		// 4. Generate a session ID and store image data and styles in cache
+		sessionID := uuid.New().String()
+		// Save session ID to a file for easy access
+		f, err := os.OpenFile("session.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			s.Logger.Error("Failed to open session log file", "error", err)
+			// Do not fail the request, just log the error
+		} else {
+			if _, err := f.WriteString(sessionID + "\n"); err != nil {
+				s.Logger.Error("Failed to write session ID to log file", "error", err)
+			}
+			f.Close()
+		}
+		sessionData := server.SessionData{
+			Styles:      styles,
+			ImageData:   imgData,
+			MimeType:    mimeType,
+			RequestData: reqData,
+		}
+
+		s.CacheMutex.Lock()
+		s.SessionCache[sessionID] = sessionData
+		s.CacheMutex.Unlock()
+
+		// 5. Generate the first image using the first style
+		generatedImg, generatedMimeType, err := gemini.GenerateImage(r.Context(), s.Logger, sessionData.ImageData, sessionData.MimeType, sessionData.RequestData.EventType, sessionData.RequestData.Venue, sessionData.RequestData.Theme, sessionData.Styles[0])
+		if err != nil {
+			s.Logger.Error("Failed to generate initial image via Gemini", "error", err)
+			http.Error(w, "Failed to generate initial image.", http.StatusInternalServerError)
+			return
+		}
+
+		// 6. Write the successful response with the first image and session ID
+		w.Header().Set("Content-Type", generatedMimeType)
+		w.Header().Set("X-Session-ID", sessionID) // Return session ID in header
+		w.WriteHeader(http.StatusOK)
+		w.Write(generatedImg)
+	}
+}
+
+// SwapStyleHandler handles the /api/v1/swap-style endpoint.
+func SwapStyleHandler(s *server.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		sessionID := r.Header.Get("X-Session-ID")
+		if sessionID == "" {
+			s.Logger.Error("Missing X-Session-ID header")
+			http.Error(w, "Missing X-Session-ID header.", http.StatusBadRequest)
+			return
+		}
+
+		var swapReq models.SwapStyleRequest
+		if err := json.NewDecoder(r.Body).Decode(&swapReq); err != nil {
+			s.Logger.Error("Failed to decode swap style request", "error", err)
+			http.Error(w, "Invalid request body.", http.StatusBadRequest)
+			return
+		}
+
+		s.CacheMutex.Lock()
+		sessionData, found := s.SessionCache[sessionID]
+		s.CacheMutex.Unlock()
+
+		if !found {
+			s.Logger.Error("Session data not found", "sessionID", sessionID)
+			http.Error(w, "Session expired or invalid.", http.StatusNotFound)
+			return
+		}
+
+		s.Logger.Info("Found session data", "sessionID", sessionID, "styles", sessionData.Styles, "stylesCount", len(sessionData.Styles), "mimeType", sessionData.MimeType, "requestData", sessionData.RequestData)
+
+		if swapReq.StyleIndex < 0 || swapReq.StyleIndex >= len(sessionData.Styles) {
+			s.Logger.Error("Invalid style index", "sessionID", sessionID, "styleIndex", swapReq.StyleIndex, "numStyles", len(sessionData.Styles))
+			http.Error(w, "Invalid style index.", http.StatusBadRequest)
+			return
+		}
+
+		// Generate the new image using the selected style
+		generatedImg, generatedMimeType, err := gemini.GenerateImage(
+			r.Context(),
+			s.Logger,
+			sessionData.ImageData,
+			sessionData.MimeType,
+			sessionData.RequestData.EventType,
+			sessionData.RequestData.Venue,
+			sessionData.RequestData.Theme,
+			sessionData.Styles[swapReq.StyleIndex],
+		)
+		if err != nil {
+			s.Logger.Error("Failed to generate swapped image via Gemini", "error", err)
+			http.Error(w, "Failed to generate swapped image.", http.StatusInternalServerError)
+			return
+		}
+
+		// Write the successful response
 		w.Header().Set("Content-Type", generatedMimeType)
 		w.WriteHeader(http.StatusOK)
 		w.Write(generatedImg)
 	}
 }
 
+// GetStylesHandler handles the /api/v1/styles endpoint.
+func GetStylesHandler(s *server.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		sessionID := r.Header.Get("X-Session-ID")
+		if sessionID == "" {
+			s.Logger.Error("Missing X-Session-ID header")
+			http.Error(w, "Missing X-Session-ID header.", http.StatusBadRequest)
+			return
+		}
+
+		s.CacheMutex.Lock()
+		sessionData, found := s.SessionCache[sessionID]
+		s.CacheMutex.Unlock()
+
+		if !found {
+			s.Logger.Error("Session data not found for styles request", "sessionID", sessionID)
+			http.Error(w, "Session expired or invalid.", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(sessionData.Styles)
+	}
+}

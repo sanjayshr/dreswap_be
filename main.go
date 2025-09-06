@@ -15,15 +15,15 @@ func main() {
 	// Initialize structured logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	s := &server.Server{
-		Logger: logger,
-	}
+	s := server.NewServer(logger)
 
 	// Use the new ServeMux for pattern-based routing
 	mux := http.NewServeMux()
 
 	// Register handlers
 	mux.HandleFunc("POST /api/v1/generate", handler.GenerateHandler(s))
+	mux.HandleFunc("POST /api/v1/swap-style", handler.SwapStyleHandler(s)) // New endpoint
+	mux.HandleFunc("GET /api/v1/styles", handler.GetStylesHandler(s))      // New endpoint
 
 	// A simple health check endpoint
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
