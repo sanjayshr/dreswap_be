@@ -1,0 +1,35 @@
+# .gitignore
+
+# Compiled Go binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# If you use the vendor directory
+/vendor/
+
+# Go module files (if you have a private proxy)
+# go.sum
+
+# Test coverage files
+/coverage.out
+/coverage.html
+
+# Environment variables
+# Never commit your .env file
+.env
+
+# IDE and editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+*.jpg
+*.png
+*.jpeg

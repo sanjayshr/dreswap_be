@@ -1,0 +1,34 @@
+# .dockerignore
+
+# Git version control directory
+.git
+.gitignore
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Go module files
+# You typically want to copy go.mod and go.sum and then download deps in the container
+go.sum
+
+# Go test files
+*_test.go
+
+# Documentation
+README.md
+LICENSE
+
+# Environment variables
+.env
+
+# IDE and editor directories
+.idea/
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+*.jpg
+*.jpeg
+*.png
