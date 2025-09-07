@@ -11,6 +11,26 @@ import (
 	"github.com/sanjayshr/event-outfitter-backend/server"
 )
 
+// enableCORS is a middleware that adds CORS headers to the response.
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Session-ID")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Session-ID")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Call the next handler
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Initialize structured logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -34,7 +54,7 @@ func main() {
 	// Configure the HTTP server
 	srv := &http.Server{
 		Addr:         ":8081",
-		Handler:      mux,
+		Handler:      enableCORS(mux),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -47,4 +67,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-
