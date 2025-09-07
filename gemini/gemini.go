@@ -51,7 +51,33 @@ func GenerateImage(ctx context.Context, logger *slog.Logger, imgData []byte, mim
 		{Text: prompt},
 		{InlineData: &genai.Blob{Data: imgData, MIMEType: mimeType}},
 	}
-	res, err := client.Models.GenerateContent(ctx, "gemini-2.5-flash-image-preview", []*genai.Content{{Parts: parts}}, nil)
+
+	// Define safety settings to be more permissive, using the updated API.
+	safetySettings := []*genai.SafetySetting{
+		{
+			Category:  genai.HarmCategoryHarassment,
+			Threshold: genai.HarmBlockThresholdBlockNone,
+		},
+		{
+			Category:  genai.HarmCategoryHateSpeech,
+			Threshold: genai.HarmBlockThresholdBlockNone,
+		},
+		{
+			Category:  genai.HarmCategorySexuallyExplicit,
+			Threshold: genai.HarmBlockThresholdBlockNone,
+		},
+		{
+			Category:  genai.HarmCategoryDangerousContent,
+			Threshold: genai.HarmBlockThresholdBlockNone,
+		},
+	}
+
+	// Use the correct GenerateContentConfig struct to pass the settings.
+	config := &genai.GenerateContentConfig{
+		SafetySettings: safetySettings,
+	}
+
+	res, err := client.Models.GenerateContent(ctx, "gemini-2.5-flash-image-preview", []*genai.Content{{Parts: parts}}, config)
 	if err != nil {
 		logger.Error("Gemini text content generation failed", "error", err, "response", res)
 		return nil, "", fmt.Errorf("failed to generate prmots(text): %w", err)
