@@ -52,23 +52,23 @@ func GenerateImage(ctx context.Context, logger *slog.Logger, imgData []byte, mim
 		{InlineData: &genai.Blob{Data: imgData, MIMEType: mimeType}},
 	}
 
-	// Define safety settings to be more permissive, using the updated API.
+	// Define safety settings to block only high-probability harmful content.
 	safetySettings := []*genai.SafetySetting{
 		{
 			Category:  genai.HarmCategoryHarassment,
-			Threshold: genai.HarmBlockThresholdBlockNone,
+			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
 		},
 		{
 			Category:  genai.HarmCategoryHateSpeech,
-			Threshold: genai.HarmBlockThresholdBlockNone,
+			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
 		},
 		{
 			Category:  genai.HarmCategorySexuallyExplicit,
-			Threshold: genai.HarmBlockThresholdBlockNone,
+			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
 		},
 		{
 			Category:  genai.HarmCategoryDangerousContent,
-			Threshold: genai.HarmBlockThresholdBlockNone,
+			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
 		},
 	}
 
