@@ -56,19 +56,19 @@ func GenerateImage(ctx context.Context, logger *slog.Logger, imgData []byte, mim
 	safetySettings := []*genai.SafetySetting{
 		{
 			Category:  genai.HarmCategoryHarassment,
-			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
+			Threshold: genai.HarmBlockThresholdBlockNone,
 		},
 		{
 			Category:  genai.HarmCategoryHateSpeech,
-			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
+			Threshold: genai.HarmBlockThresholdBlockNone,
 		},
 		{
 			Category:  genai.HarmCategorySexuallyExplicit,
-			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
+			Threshold: genai.HarmBlockThresholdBlockNone,
 		},
 		{
 			Category:  genai.HarmCategoryDangerousContent,
-			Threshold: genai.HarmBlockThresholdBlockOnlyHigh,
+			Threshold: genai.HarmBlockThresholdBlockNone,
 		},
 	}
 
