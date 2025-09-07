@@ -10,7 +10,6 @@ Dockerfile
 
 # Go module files
 # You typically want to copy go.mod and go.sum and then download deps in the container
-go.sum
 
 # Go test files
 *_test.go
