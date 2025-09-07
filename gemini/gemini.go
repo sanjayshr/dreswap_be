@@ -68,6 +68,8 @@ func GenerateImage(ctx context.Context, logger *slog.Logger, imgData []byte, mim
 		}
 	}
 
+	// If we reach here, no image data was found. Log the full response for debugging.
+	logger.Error("No image data found in Gemini response", "full_response", res)
 	return nil, "", fmt.Errorf("no image data found in Gemini response")
 }
 
