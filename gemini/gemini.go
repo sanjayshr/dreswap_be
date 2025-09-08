@@ -113,9 +113,8 @@ func GetStyleSuggestions(ctx context.Context, logger *slog.Logger, eventType, ve
 	if err != nil {
 		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
-
+	prompt := fmt.Sprintf(`Based on the person in the user's photo, identify their likely gender. Then, for an event '%s' at location '%s' with the theme '%s', generate a JSON array of 5 distinct and creative fashion apparel descriptions for them.Be specific and evocative.Example for a man: ["a crisp white linen shirt with tailored khaki shorts and leather sandals", "a lightweight navy blazer over a crew-neck t-shirt and chinos"].Example for a woman: ["a vibrant tropical print maxi dress with woven sandals", "bohemian chic with a crochet top and a flowy tiered skirt"].`, eventType, venue, theme)
 	// Construct the prompt for style suggestions
-	prompt := fmt.Sprintf(`For an event '%s' at location '%s' with the theme '%s', generate a JSON array of 5 distinct and creative fashion apparel descriptions. Be specific and evocative. Example: ["a breezy, white linen co-ord set with minimalist gold jewelry", "a vibrant tropical print maxi dress with woven sandals", "bohemian chic with a crochet top and a flowy tiered skirt"].`, eventType, venue, theme)
 	logger.Info("Generated Style Suggestion Prompt", "prompt", prompt)
 
 	res, err := client.Models.GenerateContent(ctx, "gemini-2.5-flash", genai.Text(prompt), nil)
